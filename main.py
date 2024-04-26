@@ -1,6 +1,7 @@
 from tkinter import *
 from tkinter import ttk
 import sqlite3
+import matplotlib.pyplot as plt
 
 #this function contains everything to do with the set up window
 def SetUp_Clicked():
@@ -50,6 +51,9 @@ def SetUp_Clicked():
         Inventory_window.title("Inventory")
         Inventory_window.geometry("500x400")
         Inventory_window.configure(bg='grey')
+        
+        stock_list = Listbox(Inventory_window)
+        stock_list.pack()
 
         def select_item():
             selected_item = str(stock_list.get(stock_list.curselection()))
@@ -68,59 +72,78 @@ def SetUp_Clicked():
                 (ProductName, StockQuantity) = tuple(row)
                 stock_list.insert(END, f"{ProductName} - {StockQuantity}")
 
-        stock_list = Listbox(Inventory_window)
-        stock_list.pack()
+
 
         def addStock():
             new_stock = item_entry.get()
             new_quantity = quantity_entry.get()
-            if item_entry.index("end") == 0 and quantity_entry.index("end") == 0:
-                print("at least one of the fields are empty")
+            if item_entry and quantity_entry:
+                if new_stock.isdigit() == True or new_quantity.isdigit() != True:
+                    error_label = Label(Inventory_window, text="Check that the first field is in words and the second field is an integer", fg="red")
+                    Inventory_window.after(4000, lambda: error_label.destroy())
+                    error_label.pack()
+                else:
+                    try:
+                        item_entry.delete(0, 'end')
+                        quantity_entry.delete(0, 'end')
+                        conn = sqlite3.connect('Comp Science.db')
+                        cursor = conn.cursor()
+
+                        # Create a table if it doesn't exist
+                        cursor.execute('''CREATE TABLE IF NOT EXISTS Product
+                                        (ProductID INTEGER PRIMARY KEY, ProductName TEXT, CategoryID INTEGER, StockQuantity INTEGER NOT NULL)''')
+                        
+                        stock_data = [
+                            (new_stock, new_quantity)
+                        ]
+                        for user in stock_data:   
+                            cursor.execute('INSERT INTO Product (ProductName, StockQuantity) VALUES (?, ?)', user)
+                            
+                        # Commit changes and close the connection
+                        conn.commit()
+                        conn.close()
+                        
+                        stock_list.insert(END,new_stock + " - " + new_quantity)
+
+                    except:
+                        error_label = Label(Inventory_window, text="value is already in the database", fg="red")
+                        Inventory_window.after(4000, lambda: error_label.destroy())
+                        error_label.pack()
+                        return FALSE 
+
             else:
-                stock_list.insert(END,new_stock + " - " + new_quantity)
-                item_entry.delete(0, 'end')
-                quantity_entry.delete(0, 'end')
-
-                conn = sqlite3.connect('Comp Science.db')
-                cursor = conn.cursor()
-
-                # Create a table if it doesn't exist
-                cursor.execute('''CREATE TABLE IF NOT EXISTS Product
-                                (ProductID INTEGER PRIMARY KEY, ProductName TEXT, CategoryID INTEGER, StockQuantity INTEGER NOT NULL)''')
+                error_label = Label(Inventory_window, text="One of the fields are empty", fg="red")
+                Inventory_window.after(4000, lambda: error_label.destroy())
+                error_label.pack()
                 
-                stock_data = [
-                    (new_stock, new_quantity)
-                ]
-                for user in stock_data:   
-                    cursor.execute('INSERT INTO Product (ProductName, StockQuantity) VALUES (?, ?)', user)
-                    
-                # Commit changes and close the connection
-                conn.commit()
-                conn.close()
-
         def editStock():
             current_stock = item_entry.get()
             update_quantity = quantity_entry.get()
             print(current_stock)
             print(update_quantity)
-            if item_entry.index("end") == 0 and quantity_entry.index("end") == 0:
-                print("at least one of the fields are empty")
+            if current_stock and update_quantity:
+                if current_stock.isdigit() == True or update_quantity.isdigit() != True:
+                    error_label = Label(Inventory_window, text="Check that the first field is in words and the second field is an integer", fg="red")
+                    Inventory_window.after(4000, lambda: error_label.destroy())
+                    error_label.pack()
+                else:
+                    conn = sqlite3.connect('Comp Science.db')
+                    cursor = conn.cursor()
+                    cursor.execute('UPDATE Product SET StockQuantity =? WHERE ProductName =?', (int(update_quantity), current_stock))
+                    conn.commit()
+                    conn.close()
+                    stock_list.delete(0, END)
+                    getData()
+                    item_entry.delete(0, 'end')
+                    quantity_entry.delete(0, 'end')
             else:
-                conn = sqlite3.connect('Comp Science.db')
-                cursor = conn.cursor()
-                cursor.execute('UPDATE Product SET StockQuantity =? WHERE ProductName =?', (int(update_quantity), current_stock))
-                conn.commit()
-                conn.close()
-                stock_list.delete(0, END)
-                getData()
-                item_entry.delete(0, 'end')
-                quantity_entry.delete(0, 'end')
-
+                error_label = Label(Inventory_window, text="One of the fields are empty", fg="red")
+                Inventory_window.after(4000, lambda: error_label.destroy())
+                error_label.pack()
+                
         def deleteStock():
             delete_name = item_entry.get()
-            if item_entry.index("end") == 0 and quantity_entry.index("end") == 0:
-                print("at least one of the fields are empty")
-            else:
+            if delete_name:
                 conn = sqlite3.connect('Comp Science.db')
                 cursor = conn.cursor()
                 cursor.execute('DELETE FROM Product WHERE ProductName = ?', (delete_name,))
@@ -130,6 +153,10 @@ def SetUp_Clicked():
                 getData()
                 item_entry.delete(0, 'end')
                 quantity_entry.delete(0, 'end')
+            else:
+                error_label = Label(Inventory_window, text="One of the fields are empty", fg="red")
+                Inventory_window.after(4000, lambda: error_label.destroy())
+                error_label.pack()
         def back():
             Inventory_window.destroy()
             root.deiconify()
@@ -231,6 +258,7 @@ def SetUp_Clicked():
             else:
                 # Display an error message if either name or salary field is empty
                 error_label = Label(employees_window, text="Both name and salary fields are required", fg="red")
+                employees_window.after(2000, lambda: error_label.destroy())
                 error_label.pack()
         # Create the "Add Employee" button to add the input to the Listbox
         def select_item():
@@ -257,7 +285,9 @@ def SetUp_Clicked():
             update_days = Days_entry.get()
             
             if name_entry.index("end") == 0 and salary_entry.index("end") == 0 and Days_entry.index("end"):
-                print("at least one of the fields are empty")
+                error_label = Label(employees_window, text="at least one of the fields are empty", fg="red")
+                employees_window.after(2000, lambda: error_label.destroy())
+                error_label.pack()
             else:
                 conn = sqlite3.connect('Comp Science.db')
                 cursor = conn.cursor()
@@ -273,7 +303,9 @@ def SetUp_Clicked():
         def deleteStock():
             delete_name = name_entry.get()
             if name_entry.index("end") == 0 and salary_entry.index("end") == 0 and Days_entry.index("end"):
-                print("at least one of the fields are empty")
+                error_label = Label(employees_window, text="at least one of the fields are empty", fg="red")
+                employees_window.after(2000, lambda: error_label.destroy())
+                error_label.pack()
             else:
                 conn = sqlite3.connect('Comp Science.db')
                 cursor = conn.cursor()
@@ -330,8 +362,78 @@ def SetUp_Clicked():
 def ContinueClicked():
     root.withdraw()
     def dashboard_sales():
-        pass
+        sales_window = Tk()
+        sales_window.resizable(False, False)
+        sales_window.title('Employees')
+        sales_window.geometry("200x150")
+
+        startDate_lbl = Label(sales_window, text="enter the start month: ",)
+        startDate_lbl.pack()
+        startDate_entry = Entry(sales_window)
+        startDate_entry.pack()
+        endDate_lbl = Label(sales_window, text="enter the end month: ",)
+        endDate_lbl.pack()
+        endDate_entry = Entry(sales_window)
+        endDate_entry.pack()
+
+        def generateGraph():
+            sales_window.withdraw()
+            dic = {}
+            date = []
+            cost = []
+            edit_date = []
+            edit_cost = []
+            start_date = startDate_entry.get()
+            end_date = endDate_entry.get()
+
+            conn = sqlite3.connect('Comp Science.db')
+            cursor = conn.cursor()
+            cursor.execute('''SELECT OrderID FROM Orders WHERE OrderDate = (?)''', (start_date,))
+            first = cursor.fetchone()[0]
+            cursor.execute('''SELECT OrderID FROM Orders WHERE OrderDate = (?)''', (end_date,))
+            last = cursor.fetchone()[0]
+            cursor.execute('''SELECT OrderDate, TotalBill FROM Orders WHERE OrderID >= (?) and OrderID <= (?) ''',(first, last))
+            order_data = cursor.fetchall()
+            print(order_data)
+            n=0
+            for i in order_data:
+                a, b = tuple(i)
+                date.append(a)
+                cost.append(b)
+                
+            while n < len(date)-1:
+                if date[n] == date[n+1]:
+                    first_date = date.pop(n)
+                    first_cost = cost.pop(n)
+                    second_cost = cost.pop(n)
+                    total_cost = (first_cost + second_cost)
+                    print(total_cost)
+                    cost = [total_cost] + cost
+                    edit_date.append(first_date)
+                    edit_cost.append(total_cost)
+                    dic.update({edit_date[n]: edit_cost[n]})
+                else:
+                    print("no")
+                n = n+1
+                dic.update({date[n] : cost[n]})
+            print(dic)
+
+                
+            dates = list(dic.keys())
+            bills = list(dic.values())
+            print(dates)
+            print(bills)
+            plt.bar(dates, bills, 0.6)
+            plt.show()
+
+
+        gen_btn = Button(sales_window, text="generate it", width=10, height=2, command=generateGraph)
+        gen_btn.pack()
+
+
     def dashboard_orders():
+        dashboard.withdraw()
+
         order_window = Tk()
         order_window.resizable(False, False)
         order_window.title('Employees')
@@ -377,7 +479,6 @@ def ContinueClicked():
             
             cursor.execute('''SELECT * FROM Orders''')
             orderData = cursor.fetchall()
-            print(str(orderData))
             for rows in orderData:
                 (OrderID, OrderDate, TotalBill, CustomerName, Items) = tuple(rows)
                 order_tree.insert('',END, values=(OrderID, OrderDate, CustomerName, TotalBill, Items))
@@ -386,6 +487,7 @@ def ContinueClicked():
         getTreeData()
 
         def select_item():
+            global amount
             selected_item = order_tree.focus()
             details = order_tree.item(selected_item)
             productname = details.get('values')
@@ -396,6 +498,7 @@ def ContinueClicked():
                 
             items = data[4]
             bought, amount = items.split("-")
+            amount =int(amount)
             date_entry.delete(0, 'end')
             customer_entry.delete(0, 'end')
             total_amount_entry.delete(0, 'end')
@@ -406,44 +509,48 @@ def ContinueClicked():
             total_amount_entry.insert(0, amount)
             cost_entry.insert(0, data[3])
             box.insert(0, bought)
-            name = cost_entry.get()
-            print(name)
             
         def insert():
             date = date_entry.get()
             cost = cost_entry.get()
             customer = customer_entry.get()
             item_name = box.get()
-            total_amount = total_amount_entry.get()
-            item = f"{item_name} - {total_amount}"
-            if date and customer and total_amount:  # Check if both name and salary fields are not empty 
+            total_amount = int(total_amount_entry.get())
+            item = f"{item_name}-{total_amount}"
+            if date and customer and total_amount:  # Check if both date, customer and total amount fields are not empty 
                 conn = sqlite3.connect('Comp Science.db')
                 cursor = conn.cursor()
-
-                # Create a table if it doesn't exist
-                cursor.execute('''CREATE TABLE IF NOT EXISTS Orders (OrderID INTEGER PRIMARY KEY, OrderDate INTEGER, TotalBill REAL, CustomerName TEXT, Items TEXT)''')
                 
-                stock_data = [
-                    (date, cost, customer, item)
-                ]
-                for user in stock_data:   
-                    cursor.execute('INSERT INTO Orders (OrderDate, TotalBill, CustomerName, Items) VALUES (?, ?, ?, ?)', user)
+                cursor.execute('''SELECT StockQuantity FROM  Product WHERE ProductName = ?''', (item_name,))
+                currentStock = int(cursor.fetchone()[0])
+                newStock = int(currentStock-total_amount)
+                while newStock > 0:
+                    cursor.execute('''UPDATE Product SET (StockQuantity) = (?) WHERE ProductName = ?''', (newStock, item_name))
+                    # Create a table if it doesn't exist
+                    cursor.execute('''CREATE TABLE IF NOT EXISTS Orders (OrderID INTEGER PRIMARY KEY, OrderDate INTEGER, TotalBill REAL, CustomerName TEXT, Items TEXT)''')
                     
-                # Commit changes and close the connection
-                conn.commit()
-                conn.close()
+                    stock_data = [
+                        (date, cost, customer, item)
+                    ]
+                    for user in stock_data:   
+                        cursor.execute('INSERT INTO Orders (OrderDate, TotalBill, CustomerName, Items) VALUES (?, ?, ?, ?)', user)
+                        
+                    # Commit changes and close the connection
+                    conn.commit()
+                    conn.close()
+                    
+                    conn = sqlite3.connect('Comp Science.db')
+                    cursor = conn.cursor()
                 
-                conn = sqlite3.connect('Comp Science.db')
-                cursor = conn.cursor()
-            
-                cursor.execute('''SELECT * FROM Orders WHERE OrderID=(SELECT max(OrderID) FROM Orders)''')
-                lastOrder = cursor.fetchone()
-                print(str(lastOrder))
-                (OrderID, OrderDate, TotalBill, CustomerName, Items) = lastOrder
-                order_tree.insert('',END, values=(OrderID, OrderDate, CustomerName, TotalBill, Items)) 
-                conn.commit()
-                conn.close()       
-
+                    cursor.execute('''SELECT * FROM Orders WHERE OrderID=(SELECT max(OrderID) FROM Orders)''')
+                    lastOrder = cursor.fetchone()
+                    (OrderID, OrderDate, TotalBill, CustomerName, Items) = lastOrder
+                    order_tree.insert('',END, values=(OrderID, OrderDate, CustomerName, TotalBill, Items)) 
+                    conn.commit()
+                    conn.close()
+                    break 
+                else:
+                    print("you have not got enough of those left in stock")
                 # Clear the input fields after adding an employee
                 date_entry.delete(0, 'end')
                 customer_entry.delete(0, 'end')
@@ -453,36 +560,55 @@ def ContinueClicked():
                 
         def edit():
             global nam
+            global amount
             date = str(date_entry.get())
             cost = float(cost_entry.get())
             customer = str(customer_entry.get())
             item_name = box.get()
-            total_amount = total_amount_entry.get()
-            item = f"{item_name} - {total_amount}"
-            
+            total_amount = int(total_amount_entry.get())
+            item = f"{item_name}-{total_amount}"
+
             conn = sqlite3.connect('Comp Science.db')
             cursor = conn.cursor()
-            cursor.execute('''SELECT OrderID FROM Orders WHERE CustomerName = (?) ''', (nam,))
-            orderID = int(cursor.fetchone()[0])
+
+            cursor.execute('''SELECT StockQuantity FROM  Product WHERE ProductName = ?''', (item_name,))
+            oldstock = int(cursor.fetchone()[0])
+            stock = (oldstock + amount)
+            cursor.execute('''UPDATE Product SET (StockQuantity) = (?) WHERE ProductName = ?''', (stock, item_name))
+            cursor.execute('''SELECT StockQuantity FROM  Product WHERE ProductName = ?''', (item_name,))
+            currentStock = int(cursor.fetchone()[0])
+            newStock = int(currentStock-total_amount)
+
             
-            cursor.execute('''UPDATE Orders SET (OrderDate, TotalBill, CustomerName, Items) =(?,?,?,?) WHERE OrderID = ?''', (date, cost, customer, item, orderID))
-            
-            conn.commit()
-            conn.close()
-            order_tree.delete(*order_tree.get_children())
-            getTreeData()
-            date_entry.delete(0, 'end')
-            customer_entry.delete(0, 'end')
-            total_amount_entry.delete(0, 'end')
-            cost_entry.delete(0, 'end')
-            box.delete(0, 'end')    
-            
-        def getName():
-            global nam
-            nam = customer_entry.get()
-            print(nam)
+            while newStock > 0:
+                cursor.execute('''UPDATE Product SET (StockQuantity) = (?) WHERE ProductName = ?''', (newStock, item_name))
+                
+                cursor.execute('''SELECT OrderID FROM Orders WHERE CustomerName = (?) ''', (nam,))
+                orderID = int(cursor.fetchone()[0])
+                
+                cursor.execute('''UPDATE Orders SET (OrderDate, TotalBill, CustomerName, Items) =(?,?,?,?) WHERE OrderID = ?''', (date, cost, customer, item, orderID))
+                
+                conn.commit()
+                conn.close()
+                
+
+                
+                order_tree.delete(*order_tree.get_children())
+                getTreeData()
+                date_entry.delete(0, 'end')
+                customer_entry.delete(0, 'end')
+                total_amount_entry.delete(0, 'end')
+                cost_entry.delete(0, 'end')
+                box.delete(0, 'end')    
+                break
+            else:
+                error_label = Label(order_window, text="There is not that much stock left", fg="red")
+                error_label.pack()
+                order_window.after(2000, lambda: error_label.destroy())
+                conn.close()
             
         def deleteStock():
+            global nam
             conn = sqlite3.connect('Comp Science.db')
             cursor = conn.cursor()
             
@@ -501,6 +627,17 @@ def ContinueClicked():
             total_amount_entry.delete(0, 'end')
             cost_entry.delete(0, 'end')
             box.delete(0, 'end')
+            
+        def getName():
+            global nam
+            nam = customer_entry.get()
+            print(nam)
+
+        def back():
+            order_window.destroy()
+            dashboard.deiconify()
+            
+            
         order_tree.place(x=8, y=200)
 
         add_order = Button(order_window, text="add order", width=12, height=2,command=insert)
@@ -512,8 +649,11 @@ def ContinueClicked():
         Edit_btn = Button(order_window, text="Edit Stock", width=10, height=2,command=edit)
         Edit_btn.place(x=440, y=60)
 
-        Delete_btn = Button(order_window, text="Delete Stock", width=10, height=2, command=deleteStock)
+        Delete_btn = Button(order_window, text="Delete Stock", width=10, height=2, command=lambda:(deleteStock(), getName()))
         Delete_btn.place(x=440, y=100)
+
+        back_btn = Button(order_window, text="back", width=12, height=2, command=back)
+        back_btn.place(x=450, y=450)
         #gets the data from the product table to fill up the combobox with options  
         conn = sqlite3.connect('Comp Science.db')
         cursor = conn.cursor()
@@ -535,9 +675,9 @@ def ContinueClicked():
 
     def dashboard_employees():
         dashboard.withdraw()
+
         # Create the employees window
         employees_window = Tk()
-        employees_window.resizable(False, False)
         employees_window.title('Employees')
         employees_window.geometry("600x400")
 
@@ -602,6 +742,7 @@ def ContinueClicked():
             else:
                 # Display an error message if either name or salary field is empty
                 error_label = Label(employees_window, text="Both name and salary fields are required", fg="red")
+                employees_window.after(2000, lambda: error_label.destroy())
                 error_label.pack()
         # Create the "Add Employee" button to add the input to the Listbox
         def select_item():
@@ -628,7 +769,9 @@ def ContinueClicked():
             update_days = Days_entry.get()
             
             if name_entry.index("end") == 0 and salary_entry.index("end") == 0 and Days_entry.index("end"):
-                print("at least one of the fields are empty")
+                error_label = Label(employees_window, text="at least one of the fields are empty", fg="red")
+                employees_window.after(2000, lambda: error_label.destroy())
+                error_label.pack()
             else:
                 conn = sqlite3.connect('Comp Science.db')
                 cursor = conn.cursor()
@@ -644,7 +787,9 @@ def ContinueClicked():
         def deleteStock():
             delete_name = name_entry.get()
             if name_entry.index("end") == 0 and salary_entry.index("end") == 0 and Days_entry.index("end"):
-                print("at least one of the fields are empty")
+                error_label = Label(employees_window, text="at least one of the fields are empty", fg="red")
+                employees_window.after(2000, lambda: error_label.destroy())
+                error_label.pack()
             else:
                 conn = sqlite3.connect('Comp Science.db')
                 cursor = conn.cursor()
@@ -656,11 +801,9 @@ def ContinueClicked():
                 name_entry.delete(0, 'end')
                 salary_entry.delete(0, 'end')
                 Days_entry.delete(0, 'end')
-        
         def back():
             employees_window.destroy()
             dashboard.deiconify()
-            
 
         select_button = Button(employees_window, text="Select Employee", width=12, height=2, command=select_item)
         select_button.place(x=300, y=260)
@@ -675,7 +818,7 @@ def ContinueClicked():
         Delete_btn.place(x=200, y=320)
 
         back_button = Button(employees_window, text="Back", command=back)
-        back_button.place(x=278, y=370)
+        back_button.place(x=280, y=370)
 
         getData()
     def dashboard_inventory():
@@ -710,7 +853,9 @@ def ContinueClicked():
             new_stock = item_entry.get()
             new_quantity = quantity_entry.get()
             if item_entry.index("end") == 0 and quantity_entry.index("end") == 0:
-                print("at least one of the fields are empty")
+                error_label = Label(Inventory_window, text="at least one of the fields are empty", fg="red")
+                Inventory_window.after(2000, lambda: error_label.destroy())
+                error_label.pack()
             else:
                 stock_list.insert(END,new_stock + " - " + new_quantity)
                 item_entry.delete(0, 'end')
@@ -736,10 +881,10 @@ def ContinueClicked():
         def editStock():
             current_stock = item_entry.get()
             update_quantity = quantity_entry.get()
-            print(current_stock)
-            print(update_quantity)
             if item_entry.index("end") == 0 and quantity_entry.index("end") == 0:
-                print("at least one of the fields are empty")
+                error_label = Label(Inventory_window, text="at least one of the fields are empty", fg="red")
+                Inventory_window.after(2000, lambda: error_label.destroy())
+                error_label.pack()
             else:
                 conn = sqlite3.connect('Comp Science.db')
                 cursor = conn.cursor()
@@ -754,7 +899,9 @@ def ContinueClicked():
         def deleteStock():
             delete_name = item_entry.get()
             if item_entry.index("end") == 0 and quantity_entry.index("end") == 0:
-                print("at least one of the fields are empty")
+                error_label = Label(Inventory_window, text="at least one of the fields are empty", fg="red")
+                Inventory_window.after(2000, lambda: error_label.destroy())
+                error_label.pack()
             else:
                 conn = sqlite3.connect('Comp Science.db')
                 cursor = conn.cursor()
